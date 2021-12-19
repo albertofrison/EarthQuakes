@@ -1,7 +1,5 @@
 library (tidyverse)
-
 # EarthQuakes data load from INGV - problem: the systems only returns max 10000 rows, so I had to "trick" the parameters to stay within this limit.
-
 #Year from 2002 to 2019 and Min Magnitude = 2.8 - more smaller events
 url_01 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=2002-01-01T00%3A00%3A00&endtime=2019-12-31T23%3A59%3A59&minmag=2.8&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
 
@@ -110,7 +108,7 @@ holidays <- c(holidays, format(as.Date("22/04/2019", format = "%d/%m/%Y"),  "%d/
 
 # General comment, for each year we identified 12 days of Holidays
 # Now, let's create now a dimension that says if an event happened in a Regular Day or in a Holiday Day
-quakes$DayType <- as.factor (ifelse (format(quakes$Date,"%d/%m/%Y") %in% format(as.Date(holidays, format = "%d/%m/%Y"), "%d/%m/%Y") , "Holiday", "Regular" ))
+quakes$DayType <- as.factor (ifelse (format(quakes$Date,"%d/%m/%Y") %in% format(as.Date(holidays, format = "%d/%m/%Y"), "%d/%m/%Y") , "Holiday", "Working Day" ))
 
 # We can now answer to the first question - how is more likely that an Event happens during a holiday?
 # We know that 12 days out of 365 are holidays
@@ -120,14 +118,18 @@ quakes$DayType <- as.factor (ifelse (format(quakes$Date,"%d/%m/%Y") %in% format(
 # how many events happened during a holiday?
 summary(quakes$DayType)
 
-sum (quakes$DayType == "Holiday") / nrow (quakes) # [3.77% in for smaller events, 3.36% for greater events]
+sum (quakes$DayType == "Holiday") / nrow (quakes) # [3.77% in for smaller events, 3.68% for greater events]
 # at a first look it doesn't look TOO different statistically speaking, but I will revise this once I will have revised hypotesis testing
 
 # what if during holidays events were MORE STRONG?
 summary(quakes$Magnitude)
 
 quakes %>%
-  ggplot(aes(x  = DayType, y = Magnitude)) +
+  ggplot(aes(x  = DayType, y = Magnitude, fill = DayType)) +
+  ggtitle("Earthquakes Magnitude by holiday/working day") +
+  theme_minimal() +
+  theme (legend.position = "none") +
+  labs(x = "", y = "Magnitude", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
   geom_boxplot() 
 
 # now.. let's do some science
@@ -139,6 +141,10 @@ quakes %>%
 # distribution of events per depending on Magnitude
 quakes %>%
   ggplot(aes(x = Magnitude)) +
+  ggtitle("Earthquakes Magnitude Distribution") +
+  theme_minimal() +
+  theme (legend.position = "none") +
+  labs(x = "Magnitude", y = "Count", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
   geom_histogram(binwidth = 0.1)
 
 # what about magnitude Type? Not sure what it is
@@ -156,13 +162,29 @@ quakes %>%
 
 # Geographical distribution of events, you can see the shape of Italy
 quakes %>%
-  ggplot(aes(x = Longitude, y =  Latitude)) +
-  geom_point()
+  ggplot(aes(x = Longitude, y =  Latitude, color = Location)) +
+  theme_minimal() +
+  scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4" )) +
+  ggtitle ("Map of Events (some cities have been colored to help recognize shape of Italy)") +
+  labs(subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
+  theme (legend.position = "bottom") +
+  geom_point(size = 0.8)
 
 # FROM HERE STUFF DOESN'T WORK YET
  
-quakes$Location <- if (quakes$EventLocationName !=1,  ifelse (str_detect(quakes$EventLocationName,"(TO)"), "Torino",1))
-quakes$Location <- ifelse (str_detect(quakes$EventLocationName,"(AQ)"), "Aquila",1)
+quakes <- quakes %>%
+  mutate (Location =  case_when(
+    str_detect(EventLocationName,"(TO)") ~  "Turin",
+    str_detect(EventLocationName,"(PA)") ~  "Palermo",
+    str_detect(EventLocationName,"(RM)") ~  "Rome",
+    str_detect(EventLocationName,"(BO)") ~  "Bologna",
+    #str_detect(EventLocationName,"(ME)") ~  "Messina",
+    #str_detect(EventLocationName,"(AQ)") ~  "Aquila",
+    TRUE ~  "Other"
+    )
+  )
+
+
 
 `%notin%` <- Negate(`%in%`)
-lista_esclusi <-  c("MARE", "Albania", "SLOVENIA", "SVIZZERA", "Slovenia", "Francia", "Serbia", "FRANCIA", "CROAZIA")
+#lista_esclusi <-  c("MARE", "Albania", "SLOVENIA", "SVIZZERA", "Slovenia", "Francia", "Serbia", "FRANCIA", "CROAZIA")
