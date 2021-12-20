@@ -183,3 +183,10 @@ quakes %>%
 quakes %>%
   ggplot(aes(x = Year)) +
   geom_bar()
+
+quakes %>%
+  ggplot(aes(x = Magnitude, color = DayType) ) +
+  geom_density(bw=0.1) +
+  #geom_vline(aes(xintercept=mean(Magnitude), linetype="dashed")) +
+  labs(title = "Earthquakes Magnigudo Density Distribution by Day Type", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
+  theme (legend.position = "bottom") 
