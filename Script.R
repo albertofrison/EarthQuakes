@@ -114,7 +114,6 @@ quakes$DayType <- as.factor (ifelse (format(quakes$Date,"%d/%m/%Y") %in% format(
 # We know that 12 days out of 365 are holidays
 12/365 # 3.287%
 
-
 # how many events happened during a holiday?
 summary(quakes$DayType)
 
@@ -132,12 +131,6 @@ quakes %>%
   labs(x = "", y = "Magnitude", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
   geom_boxplot() 
 
-# now.. let's do some science
-# distribution of events per Year
-quakes %>%
-  ggplot(aes(x = Year)) +
-  geom_bar()
-
 # distribution of events per depending on Magnitude
 quakes %>%
   ggplot(aes(x = Magnitude)) +
@@ -145,8 +138,34 @@ quakes %>%
   theme_minimal() +
   theme (legend.position = "none") +
   labs(x = "Magnitude", y = "Count", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
-  geom_histogram(binwidth = 0.1)
+  geom_histogram(binwidth = 0.1, color = "blue")
 
+#GEOGRAPHICAL PLOT
+# Add to Location some cities
+quakes <- quakes %>%
+  mutate (Location =  case_when(
+    str_detect(EventLocationName,"(TO)") ~  "Turin",
+    str_detect(EventLocationName,"(PA)") ~  "Palermo",
+    str_detect(EventLocationName,"(RM)") ~  "Rome",
+    str_detect(EventLocationName,"(BO)") ~  "Bologna",
+    #str_detect(EventLocationName,"(ME)") ~  "Messina",
+    #str_detect(EventLocationName,"(AQ)") ~  "Aquila",
+    TRUE ~  "Other"
+    )
+  )
+
+# Geographical distribution of events, you can see the shape of Italy
+quakes %>%
+  ggplot(aes(x = Longitude, y =  Latitude, color = Location)) +
+  theme_minimal() +
+  scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4" )) +
+  ggtitle ("Map of Events (some cities have been colored to help recognize shape of Italy)") +
+  labs(subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
+  theme (legend.position = "bottom") +
+  geom_point(size = 1)
+
+
+# OTHER ANALYSIS
 # what about magnitude Type? Not sure what it is
 # more on Magnitude Type here http://www.blueplanetheart.it/2017/04/ml-mb-ms-md-mw-perche-esistono-diverse-magnitudo/
 quakes$MagType <- as.factor(quakes$MagType)
@@ -160,31 +179,7 @@ quakes %>%
   ggplot(aes(x = Depth.Km) ) +
   geom_histogram(binwidth = 5)
 
-# Geographical distribution of events, you can see the shape of Italy
+# distribution of events per Year
 quakes %>%
-  ggplot(aes(x = Longitude, y =  Latitude, color = Location)) +
-  theme_minimal() +
-  scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4" )) +
-  ggtitle ("Map of Events (some cities have been colored to help recognize shape of Italy)") +
-  labs(subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
-  theme (legend.position = "bottom") +
-  geom_point(size = 0.8)
-
-# FROM HERE STUFF DOESN'T WORK YET
- 
-quakes <- quakes %>%
-  mutate (Location =  case_when(
-    str_detect(EventLocationName,"(TO)") ~  "Turin",
-    str_detect(EventLocationName,"(PA)") ~  "Palermo",
-    str_detect(EventLocationName,"(RM)") ~  "Rome",
-    str_detect(EventLocationName,"(BO)") ~  "Bologna",
-    #str_detect(EventLocationName,"(ME)") ~  "Messina",
-    #str_detect(EventLocationName,"(AQ)") ~  "Aquila",
-    TRUE ~  "Other"
-    )
-  )
-
-
-
-`%notin%` <- Negate(`%in%`)
-#lista_esclusi <-  c("MARE", "Albania", "SLOVENIA", "SVIZZERA", "Slovenia", "Francia", "Serbia", "FRANCIA", "CROAZIA")
+  ggplot(aes(x = Year)) +
+  geom_bar()
