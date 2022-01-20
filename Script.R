@@ -1,10 +1,10 @@
 library (tidyverse)
 # EarthQuakes data load from INGV - problem: the systems only returns max 10000 rows, so I had to "trick" the parameters to stay within this limit.
-#Year from 2002 to 2019 and Min Magnitude = 2.8 - more smaller events
+#Year from 2002 to 2019 and Min Magnitude = 2.8
 url_01 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=2002-01-01T00%3A00%3A00&endtime=2019-12-31T23%3A59%3A59&minmag=2.8&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
 
-#Year from 1985 to 2019 and Min Magnitude = 3.3 - less greater events
-url_02 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=1985-01-01T00%3A00%3A00&endtime=2019-12-31T23%3A59%3A59&minmag=3.1&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
+#Year from 1985 to 2022 and Min Magnitude = 3.1
+url_02 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=1985-01-01T00%3A00%3A00&endtime=2022-12-31T23%3A59%3A59&minmag=3.1&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
 
 # change URL depending on the analysis you want to do
 quakes <- read.delim(url_02, header = TRUE, sep ="|")
