@@ -1,13 +1,27 @@
-library (tidyverse)
-# EarthQuakes data load from INGV - problem: the systems only returns max 10000 rows, so I had to "trick" the parameters to stay within this limit.
-#Year from 2002 to 2019 and Min Magnitude = 2.8
-url_01 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=2002-01-01T00%3A00%3A00&endtime=2019-12-31T23%3A59%3A59&minmag=2.8&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
+#####
+# Project to discover more about EarthQuakes in Italy
+# Data from INGV
+# Created with ♥ by Alberto Frison 
+# Created Dec 2021
+# Revised Aug 2022
 
-#Year from 1985 to 2022 and Min Magnitude = 3.1
+#####
+# Libraries
+library (tidyverse)
+
+#####
+# Data Loading & Wrangling
+# EarthQuakes data load from INGV - problem: the systems only returns max 10000 rows, so I had to "trick" the parameters to stay within this limit.
+
+# Option 1 - Year from 2002 to 2019 and Min Magnitude = 2.8
+# url_01 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=2002-01-01T00%3A00%3A00&endtime=2019-12-31T23%3A59%3A59&minmag=2.8&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
+
+# Option -2 Year from 1985 to 2022 and Min Magnitude = 3.1
 url_02 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=1985-01-01T00%3A00%3A00&endtime=2022-12-31T23%3A59%3A59&minmag=3.1&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
 
 # change URL depending on the analysis you want to do
 quakes <- read.delim(url_02, header = TRUE, sep ="|")
+nrow(quakes) #9962 @ 25 Aug 2022
 
 # we going to work with dates so let's build some categorical parameters to use
 quakes$Date <- as.Date (quakes$Time, format = "%Y-%m-%d")
@@ -16,7 +30,12 @@ quakes$WeekNumber <- lubridate::week(quakes$Date)
 quakes$Year <- as.factor(format(quakes$Date, "%Y"))
 quakes$Month <- as.factor(format(quakes$Date, "%m"))
 
-# now, the task is to understand if - like my mother says - EarthQuakes happen more ofter during holidays... so we have to understand which day is a holiday (In Italy) and which not
+
+#####
+# This whole "dates" section matters only if you want to conduct this witch-hunt analysis, it was fun the first time but not longer...
+# update it if you wish...
+
+# ==> now, the task is to understand if - like my mother says - EarthQuakes happen more ofter during holidays... so we have to understand which day is a holiday (In Italy) and which not
 # Recurring holidays that happen always the same day every year - easy peasy
 holidays <- format(as.Date(paste ("01/01/", c(1985:2020), sep =""), format = "%d/%m/%Y"), "%d/%m/%Y") #Capodanno
 holidays <- c(holidays,format(as.Date(paste ("06/01/", c(1985:2019), sep =""), format = "%d/%m/%Y"), "%d/%m/%Y")) #Epifania
@@ -131,14 +150,40 @@ quakes %>%
   labs(x = "", y = "Magnitude", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
   geom_boxplot() 
 
+# end of witch hunt section
+
+
+#####
+# Some analysis
+head (quakes)
+summary(quakes)
+
+# Scatterplot Event Depth vs Magnitude
+quakes %>%
+  ggplot(aes(x = Depth.Km, y = Magnitude)) +
+  geom_point ()
+
+# Magnitude Density Plot  per Mag Type
+quakes %>%
+  filter(!is.na(Depth.Km) & !is.na(Magnitude)) %>%
+  #cor(x = as.numeric(Depth.Km), y = as.numeric(Magnitude), use= "pairwise.complete.ob")
+  #nrow()
+  ggplot() +
+  geom_density(aes(x = Magnitude, fill = MagType))
+
 # distribution of events per depending on Magnitude
 quakes %>%
   ggplot(aes(x = Magnitude)) +
   ggtitle("Earthquakes Magnitude Distribution") +
   theme_minimal() +
   theme (legend.position = "none") +
-  labs(x = "Magnitude", y = "Count", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
+  labs(x = "Magnitude", y = "Count", subtitle = paste("Dati INGV -", nrow(quakes)," events registered in Italy: Years 1985-2022 - Magnitude 3.1 min"), caption ="https://github.com/albertofrison/EarthQuakes") +
   geom_histogram(binwidth = 0.1, color = "blue")
+
+# calculate mean on a fancy way - you can check it easily also with summary()
+quakes %>%
+  pull (Magnitude) %>%
+  mean ()
 
 #GEOGRAPHICAL PLOT
 # Add to Location some cities
@@ -148,6 +193,7 @@ quakes <- quakes %>%
     str_detect(EventLocationName,"(PA)") ~  "Palermo",
     str_detect(EventLocationName,"(RM)") ~  "Rome",
     str_detect(EventLocationName,"(BO)") ~  "Bologna",
+    str_detect(EventLocationName,"(VE)") ~  "Venice",
     #str_detect(EventLocationName,"(ME)") ~  "Messina",
     #str_detect(EventLocationName,"(AQ)") ~  "Aquila",
     TRUE ~  "Other"
@@ -156,11 +202,12 @@ quakes <- quakes %>%
 
 # Geographical distribution of events, you can see the shape of Italy
 quakes %>%
+  filter (Magnitude > 3.5) %>% # play here to see Magnitude Impact on the pòot
   ggplot(aes(x = Longitude, y =  Latitude, color = Location)) +
   theme_minimal() +
   scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4" )) +
-  ggtitle ("Map of Events (some cities have been colored to help recognize shape of Italy)") +
-  labs(subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
+  ggtitle ("Map of Events (Turin, Bologna, Venice, Rome and Palermo have been colored)") +
+  labs(subtitle = paste("Dati INGV -", nrow(quakes)," events registered in Italy: Years 1985-2022 - Magnitude 3.1 min"), caption ="https://github.com/albertofrison/EarthQuakes") +
   theme (legend.position = "bottom") +
   geom_point(size = 1)
 
@@ -184,9 +231,9 @@ quakes %>%
   ggplot(aes(x = Year)) +
   geom_bar()
 
-quakes %>%
-  ggplot(aes(x = Magnitude, color = DayType) ) +
-  geom_density(bw=0.1) +
-  #geom_vline(aes(xintercept=mean(Magnitude), linetype="dashed")) +
-  labs(title = "Earthquakes Magnigudo Density Distribution by Day Type", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
-  theme (legend.position = "bottom") 
+# quakes %>%
+#   ggplot(aes(x = Magnitude, color = DayType) ) +
+#   geom_density(bw=0.1) +
+#   #geom_vline(aes(xintercept=mean(Magnitude), linetype="dashed")) +
+#   labs(title = "Earthquakes Magnigudo Density Distribution by Day Type", subtitle = "Dati INGV - 9.458 events registered in Italy: Years 1985-2019, Magnitude 3.1 min", caption ="https://github.com/albertofrison/EarthQuakes") +
+#   theme (legend.position = "bottom") 
