@@ -174,7 +174,7 @@ rm (list = c("url_m1",
 # STARTING THE ANALYSIS
 summary(quakes)
 
-# MAGNITUDE DISTRIVUTION
+# MAGNITUDE DISTRIBUTION
 hist(quakes$Magnitude) # distribution of magnitude - VERSION 01
 truehist(quakes$Magnitude, h = 0.2) # distribution of magnitude - VERSION 02
 
@@ -183,6 +183,7 @@ quakes %>%
   ggplot(aes(x = Year)) +
   geom_bar()
 
+#####
 # MAGNITUDE DENSITY DISTRIBUTION
 quakes %>%
   ggplot(aes(x = Magnitude, fill = MagType)) +
@@ -192,6 +193,17 @@ quakes %>%
 # more on Magnitude Type here http://www.blueplanetheart.it/2017/04/ml-mb-ms-md-mw-perche-esistono-diverse-magnitudo/
 quakes %>%
   ggplot(aes(x  = MagType, y = Magnitude, fill = MagType)) +
+  geom_boxplot()
+
+#####
+# DEPTH DENSITY DISTRIBUTION
+quakes %>%
+  ggplot(aes(x = Depth.Km, fill = MagType)) +
+  geom_density(alpha = .5)
+
+# DEPTH BOXPLOT
+quakes %>%
+  ggplot(aes(x  = MagType, y = Depth.Km, fill = MagType)) +
   geom_boxplot()
 
 
@@ -209,11 +221,15 @@ map_osm_2  <- openproj(map_osm)
 
 # Selecting a (subset) of points to be plotted
 quakes_plot <- quakes %>%
-  filter (Magnitude >= 4, Year >= 2020)
+  filter (Magnitude >= 3.5, Location != "Other")
+
+#hist (quakes_plot$Magnitude)
+summary (quakes_plot)
+as.factor(quakes_plot$Location)
 
 # Adding the Points into the Map
 map_osm_2_plot  <- OpenStreetMap::autoplot.OpenStreetMap(map_osm_2) +
-  geom_point (data = quakes_plot, aes(x = Longitude, y = Latitude, size = Magnitude, color = MagType)) +
+  geom_point (data = quakes_plot, aes(x = Longitude, y = Latitude, size = Magnitude, shape = Location, color = Location), alpha = .5) +
   labs(title = "EarthQuakes",
        subtitle = paste("Dati INGV -", nrow(quakes_plot),"events registered in Italy: Years 1985-2022"),
        caption ="https://github.com/albertofrison/EarthQuakes") +
@@ -259,18 +275,22 @@ quakes <- quakes %>%
   mutate (Location =  case_when(
     str_detect(EventLocationName,"(TO)") ~  "Turin",
     str_detect(EventLocationName,"(PA)") ~  "Palermo",
-    str_detect(EventLocationName,"(RM)") ~  "Rome",
+    str_detect(EventLocationName,"(ROME)") ~  "Rome",
     str_detect(EventLocationName,"(BO)") ~  "Bologna",
     str_detect(EventLocationName,"(VE)") ~  "Venice",
-    #str_detect(EventLocationName,"(ME)") ~  "Messina",
-    #str_detect(EventLocationName,"(AQ)") ~  "Aquila",
+    str_detect(EventLocationName,"(ME)") ~  "Messina",
+    str_detect(EventLocationName,"(AQ)") ~  "Aquila",
+    str_detect(EventLocationName,"(BA)") ~  "Bari",
+    str_detect(EventLocationName,"(MI)") ~  "Milan",
+    str_detect(EventLocationName,"(FI)") ~  "Florence",
+    str_detect(EventLocationName,"(BA)") ~  "Bari",
     TRUE ~  "Other"
     )
   )
 
 # Geographical distribution of events, you can see the shape of Italy
 quakes %>%
-  filter (Magnitude > 3.5) %>% # play here to see Magnitude Impact on the pòot
+  filter (Magnitude > 3.5, Location != "") %>% # play here to see Magnitude Impact on the pòot
   ggplot(aes(x = Longitude, y =  Latitude, color = Location)) +
   theme_minimal() +
   scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4" )) +
