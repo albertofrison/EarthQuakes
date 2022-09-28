@@ -191,6 +191,8 @@ quakes %>%
   #labs(title = "ciao")
 
 
+  
+##################------------------------------------------------------------------------------------------------
 # MAGNITUDE BOXPLOT
 # more on Magnitude Type here http://www.blueplanetheart.it/2017/04/ml-mb-ms-md-mw-perche-esistono-diverse-magnitudo/
 #quakes %>%
