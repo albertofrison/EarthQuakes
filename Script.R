@@ -21,17 +21,9 @@ rm (list = ls())
 #####
 # 03. LOADING DATA SET
 # EarthQuakes data load from INGV - problem: the systems only returns max 10000 rows, so I had to "trick" the parameters to stay within this limit.
-
-# Option 1 - Year from 2002 to 2019 and Min Magnitude = 2.8
-# url_01 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=2002-01-01T00%3A00%3A00&endtime=2019-12-31T23%3A59%3A59&minmag=2.8&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
-# Option 2 - Year from 1985 to 2022 and Min Magnitude = 3.1
-# url_02 <- "http://webservices.ingv.it/fdsnws/event/1/query?starttime=1985-01-01T00%3A00%3A00&endtime=2022-12-31T23%3A59%3A59&minmag=3.1&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000"
-
-
-# Option 3 - All data available
 # Since each webservices call returns max 10k rows, we need to find a way to load all Events (one year at time?)
 
-
+# quakes is the dataframe where I store all the data
 quakes <- "" # initialize the main dataframe
 
 # This FOR LOOP  loads one month at the time - there are still issues in 2016 / 2017 with more than 10k events in the month
@@ -41,7 +33,7 @@ for (i in 1985:2022) {
   url_m1 <- paste ("http://webservices.ingv.it/fdsnws/event/1/query?starttime=",i,"-01-01","T00%3A00%3A00&endtime=",i,"-01-31","T23%3A59%3A59&minmag=0.0&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000", sep="")
   quakes_url_m1 <- read.delim(url_m1, header = TRUE, sep ="|") # 
   print(paste (i,nrow(quakes_url_m1))) # JANUARY
-  quakes <- rbind(quakes,quakes_url_m1)
+  quakes <- rbind(quakes,quakes_url_m1) # needed to append one month a time, in order to avoid to have an entire year (last year) completely disregarded due to the running error that will be thrown when we will load the first missing month
   
   url_m2 <- if (i %% 4 == 0) # anni bisestili
     { paste ("http://webservices.ingv.it/fdsnws/event/1/query?starttime=",i,"-02-01","T00%3A00%3A00&endtime=",i,"-02-29","T23%3A59%3A59&minmag=0.0&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000", sep="")
@@ -105,13 +97,12 @@ for (i in 1985:2022) {
   
 }
 
+# END OF MASSIVE LOAD #402546 ROWS @ WED, 28th of September 2022 - nrow(quakes)
+nrow(quakes)
+
 
 #####
 # DATA WRANGLING
-
-# LOADING THE DATA WAS LONG AND HARD, LET'S BACK IT UP BEFORE MANIPULATING IY
-quakes_backup <- quakes
-
 
 # ADDING USEFUL COLUMNS
 # we going to work with dates so let's build some categorical parameters to use
@@ -120,18 +111,10 @@ quakes$WeekNumber <- lubridate::week(quakes$Date)
 quakes$Year <- as.numeric(format(quakes$Date, "%Y"))
 quakes$Month <- as.factor(format(quakes$Date, "%m"))
 
-
 # DELETING UNUSED ROWS // COLUMNS
 quakes <- quakes[-1,] # delete the first row, which is empty
 # DELETING UNUSED COLUMNS
 quakes <- quakes[,-c(1,2,6,7,8,9,12,14)]
-
-# Check the number of ROWS in the download
-nrow(quakes) #402470 @ Saturday, 24th of September 2022
-
-# STORE THE DOWNLOAD INTO A CSV
-write.csv(quakes, "data/quakes.csv", row.names=TRUE, quote=FALSE) # a 30MB file...
-# quakes <- read.csv("data/quakes.csv", header = TRUE)
 
 # FORMATTING THE COLUMNS THE RIGHT WAY
 quakes$Latitude <- as.numeric (quakes$Latitude)
@@ -140,8 +123,15 @@ quakes$Depth.Km <- as.numeric (quakes$Depth.Km)
 quakes$MagType <- as.factor (quakes$MagType)
 quakes$Magnitude <- as.numeric (quakes$Magnitude)
 
+# BACKUP PHASE - IF NEEDED
+# LOADING THE DATA WAS LONG AND HARD, LET'S BACK IT UP BEFORE MANIPULATING IY
+quakes_backup <- quakes
 
-# REMOVING THE MESS
+# IN ALTERNATIVE WE CAN STORE THE DOWNLOAD INTO A CSV
+# write.csv(quakes, "data/quakes.csv", row.names=TRUE, quote=FALSE) # a 30MB file...
+# quakes <- read.csv("data/quakes.csv", header = TRUE)
+
+# REMOVING THE MESS CAUSED BY THE LOAD
 rm (list = c("quakes_url_m1", 
              "quakes_url_m2", 
              "quakes_url_m3",
@@ -176,24 +166,39 @@ summary(quakes)
 
 # MAGNITUDE DISTRIBUTION
 hist(quakes$Magnitude) # distribution of magnitude - VERSION 01
-truehist(quakes$Magnitude, h = 0.2) # distribution of magnitude - VERSION 02
+truehist(quakes$Magnitude, h = 0.2, col = "red", xlab = "Magnitude") # distribution of magnitude - VERSION 02
 
-# EVENTS PER MONTH
+# EVENTS PER YEAR
 quakes %>%
-  ggplot(aes(x = Year)) +
+  ggplot(aes(x = Year, fill = Month)) +
   geom_bar()
 
 #####
-# MAGNITUDE DENSITY DISTRIBUTION
+# MAGNITUDE DISTRIBUTION (DENSITY)
 quakes %>%
+  group_by (MagType) %>%  
+  #summarize (n(), mean (Magnitude), mean(Latitude), mean (Longitude)) %>%
   ggplot(aes(x = Magnitude, fill = MagType)) +
-  geom_density(alpha = .5)
+  geom_density(alpha = .5) +
+  facet_wrap(~MagType)
+
+# MAGNITUDE DISTRIBUTION (HYSTOGRAMS)
+quakes %>%
+  group_by (MagType) %>%  
+  ggplot(aes(x = Magnitude, fill = MagType)) +
+  geom_histogram() +
+  facet_wrap(~MagType) +
+  #labs(title = "ciao")
+
 
 # MAGNITUDE BOXPLOT
 # more on Magnitude Type here http://www.blueplanetheart.it/2017/04/ml-mb-ms-md-mw-perche-esistono-diverse-magnitudo/
-quakes %>%
-  ggplot(aes(x  = MagType, y = Magnitude, fill = MagType)) +
-  geom_boxplot()
+#quakes %>%
+quakes %>%  
+  ggplot(aes(x = MagType, y = Magnitude, fill = MagType)) +
+  geom_point()
+
+
 
 #####
 # DEPTH DENSITY DISTRIBUTION
@@ -308,6 +313,8 @@ quakes %>%
   filter (Depth.Km <300) %>% # if you look very few are beloe 300km
   ggplot(aes(x = Depth.Km) ) +
   geom_histogram(binwidth = 5)
+
+
 
 
 # quakes %>%
