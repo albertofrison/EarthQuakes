@@ -2,9 +2,10 @@
 # Project to discover more about EarthQuakes in Italy
 # Data from INGV
 # Created with ♥ by Alberto Frison 
-# Created Dec 2021
-# Revised Aug 2022
-# Revised on Sept 2022
+# Created December 2021
+# Revised August 2022
+# Revised on September 2022
+# Revised on February 2024
 
 #####
 # 01. Libraries
@@ -28,7 +29,9 @@ quakes <- "" # initialize the main dataframe
 
 # This FOR LOOP  loads one month at the time - there are still issues in 2016 / 2017 with more than 10k events in the month
 # This will throw an error at the end when it will come to a month in the future - bu the data loaded will still be OK
-for (i in 1985:2022) {
+
+
+for (i in 1985:2023) {
   
   url_m1 <- paste ("http://webservices.ingv.it/fdsnws/event/1/query?starttime=",i,"-01-01","T00%3A00%3A00&endtime=",i,"-01-31","T23%3A59%3A59&minmag=0.0&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000", sep="")
   quakes_url_m1 <- read.delim(url_m1, header = TRUE, sep ="|") # 
@@ -97,7 +100,7 @@ for (i in 1985:2022) {
   
 }
 
-# END OF MASSIVE LOAD #402546 ROWS @ WED, 28th of September 2022 - nrow(quakes)
+# END OF MASSIVE LOAD #423856 ROWS @ SUN, 04th of February 2024 - nrow(quakes)
 nrow(quakes)
 
 
@@ -177,18 +180,18 @@ quakes %>%
 # MAGNITUDE DISTRIBUTION (DENSITY)
 quakes %>%
   group_by (MagType) %>%  
-  #summarize (n(), mean (Magnitude), mean(Latitude), mean (Longitude)) %>%
-  ggplot(aes(x = Magnitude, fill = MagType)) +
-  geom_density(alpha = .5) +
-  facet_wrap(~MagType)
+    #summarize (n(), mean (Magnitude), mean(Latitude), mean (Longitude)) %>%
+    ggplot(aes(x = Magnitude, fill = MagType)) +
+    geom_density(alpha = .5) +
+    facet_wrap(~MagType)
 
 # MAGNITUDE DISTRIBUTION (HYSTOGRAMS)
 quakes %>%
   group_by (MagType) %>%  
-  ggplot(aes(x = Magnitude, fill = MagType)) +
-  geom_histogram() +
-  facet_wrap(~MagType) +
-  #labs(title = "ciao")
+    ggplot(aes(x = Magnitude, fill = MagType)) +
+    geom_histogram() +
+    facet_wrap(~MagType) 
+    #labs(title = "ciao")
 
 
   
@@ -199,8 +202,6 @@ quakes %>%
 quakes %>%  
   ggplot(aes(x = MagType, y = Magnitude, fill = MagType)) +
   geom_point()
-
-
 
 #####
 # DEPTH DENSITY DISTRIBUTION
