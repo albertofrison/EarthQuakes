@@ -11,7 +11,7 @@
 # 01. Libraries
 library (tidyverse) 
 library (MASS) # needed for truehist
-library(OpenStreetMap) # needed for map plotting - I understood that you need to install JAVA and update your R version to get it working...
+library(leaflet)
 
 
 #####
@@ -30,8 +30,9 @@ quakes <- "" # initialize the main dataframe
 # This FOR LOOP  loads one month at the time - there are still issues in 2016 / 2017 with more than 10k events in the month
 # This will throw an error at the end when it will come to a month in the future - bu the data loaded will still be OK
 
+options(timeout = 240)
 
-for (i in 1985:2023) {
+for (i in 1985:2025) {
   
   url_m1 <- paste ("http://webservices.ingv.it/fdsnws/event/1/query?starttime=",i,"-01-01","T00%3A00%3A00&endtime=",i,"-01-31","T23%3A59%3A59&minmag=0.0&maxmag=10&mindepth=-10&maxdepth=1000&minlat=35&maxlat=49&minlon=5&maxlon=20&minversion=100&orderby=time-asc&format=text&limit=10000", sep="")
   quakes_url_m1 <- read.delim(url_m1, header = TRUE, sep ="|") # 
@@ -100,8 +101,11 @@ for (i in 1985:2023) {
   
 }
 
-# END OF MASSIVE LOAD #423856 ROWS @ SUN, 04th of February 2024 - nrow(quakes)
+
+head (quakes)
+today()
 nrow(quakes)
+# END OF MASSIVE LOAD #446117 ROWS @2025-03-15 - nrow(quakes)
 
 
 #####
@@ -125,6 +129,9 @@ quakes$Longitude <- as.numeric (quakes$Longitude)
 quakes$Depth.Km <- as.numeric (quakes$Depth.Km)
 quakes$MagType <- as.factor (quakes$MagType)
 quakes$Magnitude <- as.numeric (quakes$Magnitude)
+
+# check again how it looks
+head (quakes)
 
 # BACKUP PHASE - IF NEEDED
 # LOADING THE DATA WAS LONG AND HARD, LET'S BACK IT UP BEFORE MANIPULATING IY
@@ -167,10 +174,76 @@ rm (list = c("url_m1",
 # STARTING THE ANALYSIS
 summary(quakes)
 
+################################################################################
 # MAGNITUDE DISTRIBUTION
 hist(quakes$Magnitude) # distribution of magnitude - VERSION 01
 truehist(quakes$Magnitude, h = 0.2, col = "red", xlab = "Magnitude") # distribution of magnitude - VERSION 02
 
+
+# Creiamo l'istogramma e salviamo i dati
+# Creiamo l'istogramma e salviamo i dati
+hist_data <- truehist(quakes$Magnitude, 
+                      h = 0.2, 
+                      col = rgb(1, 0, 0, 0.5),  
+                      border = "darkred",  
+                      xlab = "Magnitudine", 
+                      ylab = "Frequenza",
+                      main = "Distribution of Earthquake Magnitude",
+                      cex.lab = 1.2,  
+                      cex.axis = 1.1,
+                      plot = FALSE)  
+
+# Disegnamo il plot con margini extra per la legenda
+#par(mar = c(5, 5, 4, 8))  # 👈 Aggiungiamo spazio a destra (4 → 8)
+
+truehist(quakes$Magnitude, 
+         h = 0.2, 
+         col = rgb(1, 0, 0, 0.5),  
+         border = "darkred",  
+         xlab = "Magnitudine", 
+         ylab = "Frequenza",
+         main = "Distribution of Earthquake Magnitude",
+         cex.lab = 1.2,  
+         cex.axis = 1.1  
+)
+
+# Sovrapposizione della curva di densità
+lines(density(quakes$Magnitude), col = "black", lwd = 2)  
+
+# Aggiunta della barra verticale a Magnitude = 4.4
+abline(v = 3.3, col = "blue", lwd = 2, lty = 2)  
+abline(v = 4.4, col = "gold", lwd = 2, lty = 2)  
+
+# Calcoliamo il massimo dell'istogramma per posizionare il testo
+#max_y <- max(hist_data$counts, na.rm = TRUE)  
+
+# Aggiungiamo il testo sopra la barra (20% sopra il massimo dell'istogramma)
+#text(4.4, max_y * 1.1, "Threshold 4.4", col = "black", cex = 1.2, font = 2, pos = 3)
+
+# Aggiunta della legenda fuori dal grafico
+# par(xpd = TRUE)  # 👈 Permette di disegnare fuori dall'area del plot
+# legend("topright",  # 👈 Posizioniamo la legenda fuori
+#        inset = c(-10, 0),  # 👈 Spostiamo la legenda fuori a destra
+#        legend = c("Histogram", "Density Curve", "Threshold 4.4"), 
+#        fill = c(rgb(1, 0, 0, 0.5), NA, NA), 
+#        border = c("darkred", NA, NA), 
+#        lty = c(NA, 1, 2), 
+#        col = c(NA, "blue", "black"), 
+#        lwd = c(NA, 2, 2),
+#        bty = "n",  # 👈 Nessun bordo per un look pulito
+#        cex = 1.1) 
+
+
+
+
+
+
+
+
+
+
+
+################################################################################
 # EVENTS PER YEAR
 quakes %>%
   ggplot(aes(x = Year, fill = Month)) +
@@ -215,37 +288,93 @@ quakes %>%
   geom_boxplot()
 
 
-#####
-# PLOTTING
-# Plotting GPS coordinates into a map
 
-# Getting the Top Left and Bottom Right coordinates, based on data
-upper_left  <- c(min(quakes$Latitude), min(quakes$Longitude))
-lower_right <- c(max(quakes$Latitude), max(quakes$Longitude))
+################################################################################
+# PLOTTING DATA INTO A MAP
 
-# Drafting the MAP
-map_osm  <- openmap(upper_left, lower_right, type = 'osm') #osm #bing
-map_osm_2  <- openproj(map_osm)
 
-# Selecting a (subset) of points to be plotted
-quakes_plot <- quakes %>%
-  filter (Magnitude >= 3.5, Location != "Other")
+head(quakes)
 
-#hist (quakes_plot$Magnitude)
-summary (quakes_plot)
-as.factor(quakes_plot$Location)
+quakes_filtered <- quakes %>% filter(Magnitude >= 3.3)
+pal <- colorNumeric(palette = "Spectral", domain = quakes_filtered$Magnitude)
 
-# Adding the Points into the Map
-map_osm_2_plot  <- OpenStreetMap::autoplot.OpenStreetMap(map_osm_2) +
-  geom_point (data = quakes_plot, aes(x = Longitude, y = Latitude, size = Magnitude, shape = Location, color = Location), alpha = .5) +
-  labs(title = "EarthQuakes",
-       subtitle = paste("Dati INGV -", nrow(quakes_plot),"events registered in Italy: Years 1985-2022"),
-       caption ="https://github.com/albertofrison/EarthQuakes") +
-  xlab("") +
-  ylab("")
-  
-# Plotting the Map to screen
-map_osm_2_plot
+nrow(quakes_filtered)
+
+quakes_filtered %>%
+  leaflet() %>%
+    addTiles() %>%  # Aggiunge la mappa di sfondo
+    addCircleMarkers(~Longitude, ~Latitude, stroke = F, fillColor = ~pal(Magnitude), radius = 2, fillOpacity = 1) %>%
+  addLegend(
+    pal = pal, 
+    values = ~Magnitude, 
+    title = "Magnitude",
+    position = "bottomleft", 
+    opacity = 1)
+
+
+# #####
+# # PLOTTING
+# # Plotting GPS coordinates into a map
+# 
+# # Getting the Top Left and Bottom Right coordinates, based on data
+# upper_left  <- c(min(quakes$Latitude), min(quakes$Longitude))
+# lower_right <- c(max(quakes$Latitude), max(quakes$Longitude))
+# 
+# # Drafting the MAP
+# map_osm  <- openmap(upper_left, lower_right, type = "osm") #osm #bing
+# 
+# map_osm_2  <- openproj(map_osm)
+# 
+# library(osmdata)
+# 
+# library(ggplot2)
+# 
+# tucson_major <- getbb(place_name = "Tucson") %>%
+#   opq() %>%
+#   add_osm_feature(key = "highway", 
+#                   value = c("motorway", "primary", "secondary")) %>%
+#   osmdata_sf()
+# 
+# tucson_minor <- getbb(place_name = "Tucson") %>%
+#   opq() %>%
+#   add_osm_feature(key = "highway", value = c("tertiary", "residential")) %>%
+#   osmdata_sf()
+# 
+# street_plot <- ggplot() +
+#   geom_sf(data = tucson_major$osm_lines,
+#           inherit.aes = FALSE,
+#           color = "black",
+#           size = 0.2)
+# 
+# street_plot <- street_plot +
+#   geom_sf(data = tucson_minor$osm_lines,
+#           inherit.aes = FALSE,
+#           color = "#666666",  # medium gray
+#           size = 0.1) # half the width of the major roads
+# # Print the plot
+# street_plot
+# 
+# 
+# 
+# # Selecting a (subset) of points to be plotted
+# quakes_plot <- quakes %>%
+#   filter (Magnitude >= 3.5, Location != "Other")
+# 
+# #hist (quakes_plot$Magnitude)
+# summary (quakes_plot)
+# as.factor(quakes_plot$Location)
+# 
+# # Adding the Points into the Map
+# map_osm_2_plot  <- OpenStreetMap::autoplot.OpenStreetMap(map_osm_2) +
+#   geom_point (data = quakes_plot, aes(x = Longitude, y = Latitude, size = Magnitude, shape = Location, color = Location), alpha = .5) +
+#   labs(title = "EarthQuakes",
+#        subtitle = paste("Dati INGV -", nrow(quakes_plot),"events registered in Italy: Years 1985-2022"),
+#        caption ="https://github.com/albertofrison/EarthQuakes") +
+#   xlab("") +
+#   ylab("")
+#   
+# # Plotting the Map to screen
+# map_osm_2_plot
 
 
 
@@ -258,10 +387,8 @@ quakes %>%
 # Magnitude Density Plot  per Mag Type
 quakes %>%
   filter(!is.na(Depth.Km) & !is.na(Magnitude)) %>%
-  #cor(x = as.numeric(Depth.Km), y = as.numeric(Magnitude), use= "pairwise.complete.ob")
-  #nrow()
   ggplot() +
-  geom_density(aes(x = Magnitude, fill = MagType))
+  geom_density(aes(x = Magnitude, fill = MagType), alpha = 0.5)
 
 # distribution of events per depending on Magnitude
 quakes %>%
@@ -301,7 +428,7 @@ quakes %>%
   filter (Magnitude > 3.5, Location != "") %>% # play here to see Magnitude Impact on the pòot
   ggplot(aes(x = Longitude, y =  Latitude, color = Location)) +
   theme_minimal() +
-  scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4" )) +
+  #scale_color_manual (values = c("#FFDB6D", "#000000", "#C4961A", "#F4EDCA", "#D16103", "#C3D7A4", "#52854C", "#4E84C4","#4E84CF", "#4E04C4"  )) +
   ggtitle ("Map of Events (Turin, Bologna, Venice, Rome and Palermo have been colored)") +
   labs(subtitle = paste("Dati INGV -", nrow(quakes)," events registered in Italy: Years 1985-2022 - Magnitude 3.1 min"), caption ="https://github.com/albertofrison/EarthQuakes") +
   theme (legend.position = "bottom") +
